@@ -7,7 +7,9 @@ vim.keymap.set('n', '<leader>e', vim.cmd.Ex)
 
 -- Clear highlights on search when pressing <Esc> in normal mode
 --  See `:help hlsearch`
-vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
+-- vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
+vim.keymap.set('n', '<F15>', '<cmd>nohlsearch<CR>', { desc = 'Clear search (F15)' })
+vim.keymap.set({ 'i', 'v', 's', 'o', 'c' }, '<F15>', '<Esc>', { desc = 'Escape (F15)' })
 
 -- Diagnostic Config & Keymaps
 -- See :help vim.diagnostic.Opts
@@ -34,6 +36,7 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 -- NOTE: This won't work in all terminal emulators/tmux/etc. Try your own mapping
 -- or just use <C-\><C-n> to exit terminal mode
 vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
+vim.keymap.set('t', '<F15>', '<C-\\><C-n>', { desc = 'Exit terminal mode (F15)' })
 
 -- TIP: Disable arrow keys in normal mode
 vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
