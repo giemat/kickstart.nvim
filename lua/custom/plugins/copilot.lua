@@ -4,4 +4,16 @@
 return {
   'github/copilot.vim',
   event = 'InsertEnter',
+  config = function()
+    -- Enable for specific filetypes (1 = true, 0 = false)
+    vim.g.copilot_filetypes = {
+      python = 1,
+      cpp = 1,
+      c = 1,
+      h = 1,
+      hpp = 1,
+      lua = 1,
+      markdown = 0,
+    }
+  end,
 }

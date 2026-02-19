@@ -121,9 +121,9 @@ return {
     --  See `:help lsp-config` for information about keys and how to configure
     local servers = {
       clangd = {},
-      -- gopls = {},
+      gopls = {},
       pyright = {},
-      -- rust_analyzer = {},
+      --rust_analyzer = {},
 
       -- Some languages (like typescript) have entire language plugins that can be useful:
       --    https://github.com/pmizio/typescript-tools.nvim
@@ -144,8 +144,9 @@ return {
       'clang-format',
       'clangd',
       'lua-language-server', -- Lua Language server
+      'gopls', -- Go language server
       'stylua', -- Used to format Lua code
-      -- You can add other tools here that you want Mason to install
+      'pyright', -- You can add other tools here that you want Mason to install
     })
 
     require('mason-tool-installer').setup { ensure_installed = ensure_installed }
