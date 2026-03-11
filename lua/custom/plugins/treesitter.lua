@@ -13,7 +13,9 @@ return {
         'vim',
         'vimdoc',
         'query',
+        'jsonc',
       },
+      auto_install = true,
       highlight = { enable = true },
     }
   end,

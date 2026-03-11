@@ -120,6 +120,20 @@ return {
     --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
     --  See `:help lsp-config` for information about keys and how to configure
     local servers = {
+      -- clangd = {
+      --   -- This fixes the encoding warning and prevents offset errors
+      --   capabilities = {
+      --     offsetEncoding = { 'utf-16' },
+      --   },
+      --   cmd = {
+      --     'clangd',
+      --     '--background-index',
+      --     '--clang-tidy',
+      --     '--header-insertion=never',
+      --   },
+      --   -- Force the LSP to stay at the workspace level, not the src folder
+      --   root_dir = function(fname) return require('lspconfig.util').root_pattern('compile_commands.json', 'package.xml', '.git')(fname) end,
+      -- },
       clangd = {},
       gopls = {},
       pyright = {},
