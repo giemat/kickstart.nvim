@@ -5,6 +5,9 @@ vim.keymap.set('n', '<leader>e', vim.cmd.Ex)
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
+-- F10 to compile and run C++ file
+if vim.bo.filetype == 'cpp' then vim.keymap.set('n', '<F10>', ':w<CR>:!g++ % -o %:r && ./%:r<CR>', { desc = 'Compile and run C++ file (F10)' }) end
+
 -- Clear highlights on search when pressing <Esc> in normal mode
 --  See `:help hlsearch`
 -- vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
