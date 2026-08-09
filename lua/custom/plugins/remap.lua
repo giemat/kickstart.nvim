@@ -1,18 +1,37 @@
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
+
+-- Open netrw file explorer.
+-- How to change: remap `<leader>e` to any command you prefer.
 vim.keymap.set('n', '<leader>e', vim.cmd.Ex)
 
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
--- F10 to compile and run C++ file
-if vim.bo.filetype == 'cpp' then vim.keymap.set('n', '<F10>', ':w<CR>:!g++ % -o %:r && ./%:r<CR>', { desc = 'Compile and run C++ file (F10)' }) end
+-- F10 to compile and run the current C++ file.
+-- How to change: edit flags in the `g++` command below.
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'cpp',
+  callback = function(event)
+    vim.keymap.set('n', '<F10>', function()
+      vim.cmd 'write'
+      local file = vim.fn.expand '%:p'
+      local output = vim.fn.expand '%:p:r'
+      local cmd = string.format('g++ -std=c++17 "%s" -o "%s" && "%s"', file, output, output)
+      vim.cmd('!' .. cmd)
+    end, { buffer = event.buf, desc = 'Compile and run C++ file' })
+  end,
+})
 
 -- Clear highlights on search when pressing <Esc> in normal mode
 --  See `:help hlsearch`
--- vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
-vim.keymap.set('n', '<F15>', '<cmd>nohlsearch<CR>', { desc = 'Clear search (F15)' })
-vim.keymap.set({ 'i', 'v', 's', 'o', 'c' }, '<F15>', '<Esc>', { desc = 'Escape (F15)' })
+-- CapsLock is remapped globally to Escape in Hyprland (`caps:escape`), so
+-- using `<Esc>` here also works when you press CapsLock.
+vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR><Esc>', { desc = 'Clear search highlight' })
+
+-- Run `:Copilot` from normal mode with Ctrl+i.
+-- How to change: replace `<C-i>` or call another Copilot subcommand.
+vim.keymap.set('n', '<C-i>', '<cmd>Copilot<CR>', { desc = 'Copilot command' })
 
 -- Diagnostic Config & Keymaps
 -- See :help vim.diagnostic.Opts
@@ -39,7 +58,6 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 -- NOTE: This won't work in all terminal emulators/tmux/etc. Try your own mapping
 -- or just use <C-\><C-n> to exit terminal mode
 vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
-vim.keymap.set('t', '<F15>', '<C-\\><C-n>', { desc = 'Exit terminal mode (F15)' })
 
 -- TIP: Disable arrow keys in normal mode
 vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')

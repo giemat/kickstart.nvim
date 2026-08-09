@@ -26,10 +26,16 @@ return {
     statusline.setup { use_icons = vim.g.have_nerd_font }
 
     -- You can configure sections in the statusline by overriding their
-    -- default behavior. For example, here we set the section for
-    -- cursor location to LINE:COLUMN
+    -- default behavior. Here we show a `TS` marker when Treesitter
+    -- highlighting is active for the current buffer.
+    -- How to change: edit/remove the `ts_active` logic or marker text.
     ---@diagnostic disable-next-line: duplicate-set-field
-    statusline.section_location = function() return '%2l:%-2v' end
+    statusline.section_location = function()
+      local bufnr = vim.api.nvim_get_current_buf()
+      local ts_active = vim.treesitter.highlighter.active[bufnr] ~= nil
+      local marker = ts_active and 'TS ' or ''
+      return marker .. '%2l:%-2v'
+    end
 
     -- ... and there is more!
     --  Check out: https://github.com/nvim-mini/mini.nvim

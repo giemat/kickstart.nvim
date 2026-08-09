@@ -35,8 +35,7 @@ return {
   --- @type blink.cmp.Config
   opts = {
     keymap = {
-      -- 'default' (recommended) for mappings similar to built-in completions
-      --   <c-y> to accept ([y]es) the completion.
+      -- 'default' for built-in-like mappings (`<c-y>` to accept)
       --    This will auto-import if your LSP supports it.
       --    This will expand snippets if the LSP sent a snippet.
       -- 'super-tab' for tab to accept
@@ -56,7 +55,9 @@ return {
       -- <c-k>: Toggle signature help
       --
       -- See :h blink-cmp-config-keymap for defining your own keymap
-      preset = 'default',
+      -- Accept completion with <Tab>.
+      -- How to change: switch back to 'default' if you prefer <C-y> acceptance.
+      preset = 'super-tab',
 
       -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
       --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
@@ -87,7 +88,10 @@ return {
     -- the rust implementation via `'prefer_rust_with_warning'`
     --
     -- See :h blink-cmp-config-fuzzy for more information
-    fuzzy = { implementation = 'lua' },
+    -- Use the Rust fuzzy matcher when available (faster + removes health warning
+    -- once the binary is downloaded), and fall back to Lua if needed.
+    -- How to change: set to 'lua' to force pure-Lua implementation.
+    fuzzy = { implementation = 'prefer_rust_with_warning' },
 
     -- Shows a signature help window while you type arguments for a function
     signature = { enabled = true },
