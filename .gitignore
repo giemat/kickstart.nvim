@@ -7,3 +7,6 @@ spell/
 
 
 .DS_Store
+docs/specs
+docs/backlog.md
+docs/plans
