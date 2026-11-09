@@ -3,6 +3,8 @@
 
 return {
   'nvim-neo-tree/neo-tree.nvim',
+  -- Disabled for now; enable by setting `enabled = true`.
+  enabled = false,
   version = '*',
   dependencies = {
     'nvim-lua/plenary.nvim',

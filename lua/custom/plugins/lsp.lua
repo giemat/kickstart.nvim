@@ -25,7 +25,7 @@ return {
     -- and language tooling communicate in a standardized fashion.
     --
     -- In general, you have a "server" which is some tool built to understand a particular
-    -- language (such as `gopls`, `lua_ls`, `rust_analyzer`, etc.). These Language Servers
+    -- language (such as `clangd`, `lua_ls`, `pyright`, etc.). These Language Servers
     -- (sometimes called LSP servers, but that's kind of like ATM Machine) are standalone
     -- processes that communicate with some "client" - in this case, Neovim!
     --
@@ -44,7 +44,7 @@ return {
 
     --  This function gets run when an LSP attaches to a particular buffer.
     --    That is to say, every time a new file is opened that is associated with
-    --    an lsp (for example, opening `main.rs` is associated with `rust_analyzer`) this
+    --    an lsp (for example, opening `main.py` is associated with `pyright`) this
     --    function will be executed to configure the current buffer
     vim.api.nvim_create_autocmd('LspAttach', {
       group = vim.api.nvim_create_augroup('kickstart-lsp-attach', { clear = true }),
@@ -120,30 +120,8 @@ return {
     --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
     --  See `:help lsp-config` for information about keys and how to configure
     local servers = {
-      -- clangd = {
-      --   -- This fixes the encoding warning and prevents offset errors
-      --   capabilities = {
-      --     offsetEncoding = { 'utf-16' },
-      --   },
-      --   cmd = {
-      --     'clangd',
-      --     '--background-index',
-      --     '--clang-tidy',
-      --     '--header-insertion=never',
-      --   },
-      --   -- Force the LSP to stay at the workspace level, not the src folder
-      --   root_dir = function(fname) return require('lspconfig.util').root_pattern('compile_commands.json', 'package.xml', '.git')(fname) end,
-      -- },
       clangd = {},
-      gopls = {},
       pyright = {},
-      --rust_analyzer = {},
-
-      -- Some languages (like typescript) have entire language plugins that can be useful:
-      --    https://github.com/pmizio/typescript-tools.nvim
-      --
-      -- But for many setups, the LSP (`ts_ls`) will work just fine
-      -- ts_ls = {},
     }
 
     -- Ensure the servers and tools above are installed
@@ -158,7 +136,6 @@ return {
       'clang-format',
       'clangd',
       'lua-language-server', -- Lua Language server
-      'gopls', -- Go language server
       'stylua', -- Used to format Lua code
       'pyright', -- You can add other tools here that you want Mason to install
     })
@@ -172,7 +149,7 @@ return {
     end
 
     -- Special Lua Config, as recommended by neovim help docs
-    vim.lsp.config('lua-language-server', {
+    vim.lsp.config('lua_ls', {
       on_init = function(client)
         if client.workspace_folders then
           local path = client.workspace_folders[1].name
@@ -196,6 +173,6 @@ return {
         Lua = {},
       },
     })
-    vim.lsp.enable 'lua-language-server'
+    vim.lsp.enable 'lua_ls'
   end,
 }
