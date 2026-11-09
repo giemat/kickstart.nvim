@@ -21,6 +21,7 @@ local base_tools = {
   { 'rg', 'telescope live grep' },
   { 'tree-sitter', 'treesitter parser builds' },
   { 'cc', 'treesitter parser compiles' },
+  { 'g++', 'C++ compile and run (<F10>)' },
   { 'node', 'Copilot and node-based language servers' },
   { 'curl', 'Mason downloads' },
 }

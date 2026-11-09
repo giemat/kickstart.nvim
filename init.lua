@@ -213,7 +213,8 @@ rtp:prepend(lazypath)
 require('lazy').setup({
   { import = 'custom.plugins' },
 }, {
-  -- Never auto-update or nag; update explicitly with :Lazy update.
+  -- Never check for plugin updates (update explicitly with :Lazy update),
+  -- and do not notify when config files change.
   checker = { enabled = false },
   change_detection = { notify = false },
   ui = {

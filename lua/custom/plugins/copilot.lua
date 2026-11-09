@@ -11,13 +11,14 @@ return {
     vim.g.copilot_no_tab_map = true
 
     -- Enable for specific filetypes (1 = true, 0 = false)
+    -- `['*'] = 0` makes this an allowlist: unlisted filetypes stay off.
     vim.g.copilot_filetypes = {
+      ['*'] = 0,
       c = 1,
       cpp = 1,
       python = 1,
       lua = 1,
       sh = 1,
-      bash = 1,
       dockerfile = 1,
       yaml = 1,
       tex = 1,

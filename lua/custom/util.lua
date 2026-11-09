@@ -36,9 +36,18 @@ function M.warn_missing(tool, feature)
   vim.schedule(function() vim.notify(string.format('%s not found: %s disabled', tool, feature), vim.log.levels.WARN) end)
 end
 
+--- Record an optional tool for `:checkhealth custom`. Call this at plugin
+--- spec load time (not inside lazy callbacks) so health lists it even
+--- before the feature has been used in the session.
+function M.register(tool, feature)
+  if not M.tools[tool] then M.tools[tool] = { feature = feature or 'feature', optional = true } end
+end
+
 --- Guard for optional features. Returns true when `tool` exists,
 --- otherwise warns once and returns false.
+--- Also registers the tool so `:checkhealth custom` lists it.
 function M.require_tool(tool, feature)
+  M.register(tool, feature)
   if M.has(tool) then return true end
   M.warn_missing(tool, feature or 'feature')
   return false
