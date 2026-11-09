@@ -88,6 +88,7 @@ P.S. You can delete this when you're done too. It's your config now! :)
 -- See `:help mapleader`
 --  NOTE: Must happen before plugins are loaded (otherwise wrong leader will be used)
 vim.g.mapleader = ' '
+vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = true
@@ -175,6 +176,16 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   callback = function() vim.hl.on_yank() end,
 })
 
+-- Reload files changed outside Neovim (e.g. edited from a container Neovim).
+vim.o.autoread = true
+vim.api.nvim_create_autocmd({ 'FocusGained', 'BufEnter', 'CursorHold' }, {
+  desc = 'Check for files changed outside Neovim',
+  group = vim.api.nvim_create_augroup('custom-autoread', { clear = true }),
+  callback = function()
+    if vim.bo.buftype == '' and not vim.fn.mode():match '^c' then vim.cmd 'checktime' end
+  end,
+})
+
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
@@ -202,6 +213,9 @@ rtp:prepend(lazypath)
 require('lazy').setup({
   { import = 'custom.plugins' },
 }, {
+  -- Never auto-update or nag; update explicitly with :Lazy update.
+  checker = { enabled = false },
+  change_detection = { notify = false },
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the
     -- default lazy.nvim defined Nerd Font icons, otherwise define a unicode icons table
