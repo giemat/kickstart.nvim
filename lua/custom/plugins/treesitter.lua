@@ -9,7 +9,6 @@ return {
       -- Requested languages
       'c',
       'cpp',
-      'go',
       'python',
       'lua',
 
@@ -26,10 +25,8 @@ return {
     -- Enable treesitter highlighting when one of the target filetypes is opened.
     -- If treesitter fails for any reason, this keeps editing usable.
     vim.api.nvim_create_autocmd('FileType', {
-      pattern = { 'c', 'cpp', 'go', 'python', 'lua' },
-      callback = function(args)
-        pcall(vim.treesitter.start, args.buf)
-      end,
+      pattern = { 'c', 'cpp', 'python', 'lua' },
+      callback = function(args) pcall(vim.treesitter.start, args.buf) end,
     })
   end,
 }
