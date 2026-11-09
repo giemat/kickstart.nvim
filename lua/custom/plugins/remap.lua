@@ -1,6 +1,3 @@
-vim.g.mapleader = ' '
-vim.g.maplocalleader = ' '
-
 -- Open netrw file explorer.
 -- How to change: remap `<leader>e` to any command you prefer.
 vim.keymap.set('n', '<leader>e', vim.cmd.Ex)
@@ -29,10 +26,6 @@ vim.api.nvim_create_autocmd('FileType', {
 -- using `<Esc>` here also works when you press CapsLock.
 vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR><Esc>', { desc = 'Clear search highlight' })
 
--- Run `:Copilot` from normal mode with Ctrl+i.
--- How to change: replace `<C-i>` or call another Copilot subcommand.
-vim.keymap.set('n', '<C-i>', '<cmd>Copilot<CR>', { desc = 'Copilot command' })
-
 -- Diagnostic Config & Keymaps
 -- See :help vim.diagnostic.Opts
 vim.diagnostic.config {
@@ -49,7 +42,7 @@ vim.diagnostic.config {
   jump = {
     on_jump = function(diagnostic, bufnr)
       if not diagnostic then return end
-      vim.diagnostic.open_float({ bufnr = bufnr, scope = 'cursor', focus = false })
+      vim.diagnostic.open_float { bufnr = bufnr, scope = 'cursor', focus = false }
     end,
   },
 }
@@ -65,10 +58,10 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 
 -- TIP: Disable arrow keys in normal mode
-vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
-vim.keymap.set('n', '<right>', '<cmd>echo "Use l to move!!"<CR>')
-vim.keymap.set('n', '<up>', '<cmd>echo "Use k to move!!"<CR>')
-vim.keymap.set('n', '<down>', '<cmd>echo "Use j to move!!"<CR>')
+vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>', { desc = 'Arrow disabled, use h' })
+vim.keymap.set('n', '<right>', '<cmd>echo "Use l to move!!"<CR>', { desc = 'Arrow disabled, use l' })
+vim.keymap.set('n', '<up>', '<cmd>echo "Use k to move!!"<CR>', { desc = 'Arrow disabled, use k' })
+vim.keymap.set('n', '<down>', '<cmd>echo "Use j to move!!"<CR>', { desc = 'Arrow disabled, use j' })
 
 -- Keybinds to make split navigation easier.
 --  Use CTRL+<hjkl> to switch between windows

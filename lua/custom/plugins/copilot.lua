@@ -1,23 +1,27 @@
--- GitHub Copilot (global enable). To enable only for specific filetypes,
--- set `vim.g.copilot_filetypes` like:
---   vim.g.copilot_filetypes = { python = true, lua = true, markdown = false }
+-- GitHub Copilot, enabled only for the filetypes listed below.
+-- Optional: without `node` on PATH the plugin is never loaded, so a fresh
+-- machine or container without node starts cleanly.
 return {
   'github/copilot.vim',
   event = 'InsertEnter',
+  cond = function() return require('custom.util').has 'node' end,
   config = function()
     -- Keep Copilot from owning <Tab>, so blink.cmp can handle completion with Tab.
     -- How to change: set this to false if you want Copilot's default Tab accept.
     vim.g.copilot_no_tab_map = true
 
     -- Enable for specific filetypes (1 = true, 0 = false)
+    -- `['*'] = 0` makes this an allowlist: unlisted filetypes stay off.
     vim.g.copilot_filetypes = {
-      python = 1,
-      go = 1,
-      cpp = 1,
+      ['*'] = 0,
       c = 1,
-      h = 1,
-      hpp = 1,
+      cpp = 1,
+      python = 1,
       lua = 1,
+      sh = 1,
+      dockerfile = 1,
+      yaml = 1,
+      tex = 1,
       markdown = 0,
     }
 
