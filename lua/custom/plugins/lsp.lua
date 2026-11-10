@@ -116,36 +116,69 @@ return {
     --  So, we create new capabilities with blink.cmp, and then broadcast that to the servers.
     local capabilities = require('blink.cmp').get_lsp_capabilities()
 
-    -- Enable the following language servers
-    --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
-    --  See `:help lsp-config` for information about keys and how to configure
-    local servers = {
-      clangd = {},
-      pyright = {},
+    local util = require 'custom.util'
+
+    -- Neovim detects compose files as plain `yaml`; the compose LS only attaches to `yaml.docker-compose`.
+    vim.filetype.add {
+      filename = {
+        ['docker-compose.yml'] = 'yaml.docker-compose',
+        ['docker-compose.yaml'] = 'yaml.docker-compose',
+        ['compose.yml'] = 'yaml.docker-compose',
+        ['compose.yaml'] = 'yaml.docker-compose',
+      },
     }
 
-    -- Ensure the servers and tools above are installed
-    --
-    -- To check the current status of installed tools and/or manually install
-    -- other tools, you can run
-    --    :Mason
-    --
-    -- You can press `g?` for help in this menu.
-    local ensure_installed = vim.tbl_keys(servers or {})
-    vim.list_extend(ensure_installed, {
-      'clang-format',
-      'clangd',
-      'lua-language-server', -- Lua Language server
-      'stylua', -- Used to format Lua code
-      'pyright', -- You can add other tools here that you want Mason to install
-    })
+    -- Language servers: lspconfig name -> Mason package, server binary, and whether it needs node.
+    --  See `:help lsp-config` for the keys accepted in `config`.
+    local servers = {
+      clangd = { mason = 'clangd', bin = 'clangd' },
+      basedpyright = { mason = 'basedpyright', bin = 'basedpyright-langserver' },
+      bashls = { mason = 'bash-language-server', bin = 'bash-language-server', node = true },
+      dockerls = { mason = 'dockerfile-language-server', bin = 'docker-langserver', node = true },
+      docker_compose_language_service = { mason = 'docker-compose-language-service', bin = 'docker-compose-langserver', node = true },
+      yamlls = { mason = 'yaml-language-server', bin = 'yaml-language-server', node = true },
+      marksman = { mason = 'marksman', bin = 'marksman' },
+      texlab = { mason = 'texlab', bin = 'texlab' },
+      lua_ls = { mason = 'lua-language-server', bin = 'lua-language-server' },
+    }
+
+    -- Formatters, linters and debug adapters installed through Mason (consumed by conform, nvim-lint, nvim-dap).
+    local tools = {
+      { 'clang-format', bin = 'clang-format', feature = 'C/C++ formatting' },
+      { 'ruff', bin = 'ruff', feature = 'Python formatting and linting' },
+      { 'shfmt', bin = 'shfmt', feature = 'shell formatting' },
+      { 'shellcheck', bin = 'shellcheck', feature = 'shell linting' },
+      { 'hadolint', bin = 'hadolint', feature = 'Dockerfile linting' },
+      { 'markdownlint', bin = 'markdownlint', feature = 'Markdown linting', node = true },
+      { 'stylua', bin = 'stylua', feature = 'Lua formatting' },
+      { 'codelldb', bin = 'codelldb', feature = 'C/C++ debugging' },
+      { 'debugpy', bin = 'debugpy-adapter', feature = 'Python debugging' },
+    }
+
+    local has_node = util.has 'node'
+    if not has_node then util.warn_missing('node', 'bashls, yamlls, dockerls, docker-compose LS, markdownlint') end
+
+    -- Ensure the servers and tools above are installed (once; later starts are a no-op).
+    --  To check the current status of installed tools, run `:Mason` (press `g?` for help).
+    local ensure_installed = {}
+    for name, server in vim.spairs(servers) do
+      util.register(server.bin, name .. ' language server')
+      if has_node or not server.node then table.insert(ensure_installed, server.mason) end
+    end
+    for _, tool in ipairs(tools) do
+      util.register(tool.bin, tool.feature)
+      if has_node or not tool.node then table.insert(ensure_installed, tool[1]) end
+    end
 
     require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
     for name, server in pairs(servers) do
-      server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
-      vim.lsp.config(name, server)
-      vim.lsp.enable(name)
+      if has_node or not server.node then
+        local config = server.config or {}
+        config.capabilities = vim.tbl_deep_extend('force', {}, capabilities, config.capabilities or {})
+        vim.lsp.config(name, config)
+        if name ~= 'lua_ls' then vim.lsp.enable(name) end
+      end
     end
 
     -- Special Lua Config, as recommended by neovim help docs

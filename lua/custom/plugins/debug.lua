@@ -1,5 +1,6 @@
 -- Debugger integration (nvim-dap + dap-ui).
--- Adapters are installed via mason-nvim-dap; add them to `ensure_installed` below.
+-- Adapters (codelldb for C/C++, debugpy for Python) are installed by Mason via lsp.lua
+-- and wired up by the mason-nvim-dap handlers below.
 
 return {
   -- NOTE: Yes, you can install new plugins here!
@@ -59,18 +60,36 @@ return {
     local dap = require 'dap'
     local dapui = require 'dapui'
 
-    require('mason-nvim-dap').setup {
-      -- Makes a best effort to setup the various debuggers with
-      -- reasonable debug configurations
-      automatic_installation = true,
-
-      -- You can provide additional configuration to the handlers,
-      -- see mason-nvim-dap README for more information
-      handlers = {},
-
-      -- You'll need to check that you have the required things installed
-      -- online, please don't ask me how to install them :)
+    local mason_dap = require 'mason-nvim-dap'
+    mason_dap.setup {
+      -- codelldb and debugpy are installed by mason-tool-installer (lsp.lua),
+      -- so two installers never race on the same package.
+      automatic_installation = false,
       ensure_installed = {},
+
+      -- Handlers set up dap.adapters/configurations for installed adapters:
+      --  python -> debugpy (default handler), c/cpp -> codelldb.
+      handlers = {
+        function(config) mason_dap.default_setup(config) end,
+        codelldb = function(config)
+          local program = function()
+            local default = vim.fn.expand '%:p:r' -- same path <F10> builds to
+            return vim.fn.input('Path to executable: ', default, 'file')
+          end
+          config.configurations = {
+            {
+              name = 'Launch file (codelldb)',
+              type = 'codelldb',
+              request = 'launch',
+              program = program,
+              cwd = '${workspaceFolder}',
+              stopOnEntry = false,
+            },
+          }
+          config.filetypes = { 'c', 'cpp' }
+          mason_dap.default_setup(config)
+        end,
+      },
     }
 
     -- Dap UI setup
