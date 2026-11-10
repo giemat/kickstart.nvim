@@ -1,10 +1,9 @@
 -- Neo-tree is a Neovim plugin to browse the file system
 -- https://github.com/nvim-neo-tree/neo-tree.nvim
+-- How to change: edit the `<leader>e` key below; `q` or `<leader>e` closes the tree.
 
 return {
   'nvim-neo-tree/neo-tree.nvim',
-  -- Disabled for now; enable by setting `enabled = true`.
-  enabled = false,
   version = '*',
   dependencies = {
     'nvim-lua/plenary.nvim',
@@ -13,13 +12,16 @@ return {
   },
   lazy = false,
   keys = {
-    { '\\', ':Neotree reveal<CR>', desc = 'NeoTree reveal', silent = true },
+    { '<leader>e', '<cmd>Neotree toggle reveal<CR>', desc = 'File [E]xplorer (neo-tree)', silent = true },
   },
   opts = {
     filesystem = {
+      -- `nvim .` / `:e some/dir` opens neo-tree in place instead of netrw.
+      hijack_netrw_behavior = 'open_current',
       window = {
         mappings = {
-          ['\\'] = 'close_window',
+          ['<leader>e'] = 'close_window',
+          ['q'] = 'close_window',
         },
       },
     },
