@@ -5,14 +5,21 @@
 --   :DcRe [args]  same with --remove-existing-container
 --   :DcIn [cmd]   myubuntu/myubuntu/devcontainer-exec.sh
 --   :DcInW [cmd]  same with --wait (until zsh exists)
+--   :DcReopen     reopen cwd in the container: up if not running, re-copy
+--                 the nvim config, `Lazy! restore` on lockfile drift, then
+--                 open container Neovim (new tmux window, else a terminal tab)
 --
 -- Workspace folder = $DEVCONTAINER_PATH or cwd.
+-- Loaded from lua/custom/plugins/devcontainer.lua (a lazy virtual spec).
 local M = {}
 
 M.config = {
   local_repo = vim.fn.expand '~/.dotfiles',
   up_script = 'myubuntu/myubuntu/devcontainer-up.sh',
   exec_script = 'myubuntu/myubuntu/devcontainer-exec.sh',
+  -- Stow package holding this config, relative to local_repo. Its
+  -- `.config/nvim` subtree is re-copied to the container's ~/dotfiles/nvim.
+  nvim_package = 'nvim',
 }
 
 local function notify(msg, level) vim.notify(msg, level or vim.log.levels.INFO, { title = 'Devcontainer' }) end
@@ -28,13 +35,18 @@ local function script_path(rel)
   return path
 end
 
-local function open_terminal(cmd, title)
+-- Opens a terminal split running `cmd`. `on_exit(code, buf)` is optional.
+local function open_terminal(cmd, title, on_exit)
   vim.cmd 'botright 15split'
   vim.cmd.enew()
+  local buf = vim.api.nvim_get_current_buf()
   vim.fn.jobstart(cmd, {
     term = true,
     cwd = workspace(),
     env = { DEVCONTAINER_PATH = workspace() },
+    on_exit = on_exit and function(_, code)
+      vim.schedule(function() on_exit(code, buf) end)
+    end or nil,
   })
   vim.bo.buflisted = false
   pcall(vim.api.nvim_buf_set_name, 0, title)
@@ -79,20 +91,217 @@ function M.wait_then_exec(cmd)
   open_terminal(argv, 'devcontainer shell')
 end
 
+-- [[ Reopen in container ]]
+
+-- POSIX single-quote escaping for bash/sh/zsh. Not `vim.fn.shellescape`:
+-- that follows 'shell' (fish/csh rules) but these strings always run in bash.
+local function sh_quote(s) return "'" .. tostring(s):gsub("'", [['\'']]) .. "'" end
+
+--- Devcontainer config for `ws`, following `find_devcontainer_config` in
+--- myubuntu/_lib.sh. Returns `found, config_arg, err`: `config_arg` is the
+--- value the scripts pass as `--config` (nil for the default locations).
+function M.find_config(ws)
+  local env_config = vim.env.DEVCONTAINER_CONFIG
+  if env_config and env_config ~= '' then
+    if vim.fn.filereadable(env_config) == 1 then return true, env_config end
+    return false, nil, 'DEVCONTAINER_CONFIG points to a missing file: ' .. env_config
+  end
+  if vim.fn.filereadable(ws .. '/.devcontainer/devcontainer.json') == 1 or vim.fn.filereadable(ws .. '/.devcontainer.json') == 1 then return true, nil end
+  local nested = vim.fn.glob(ws .. '/.devcontainer/*/devcontainer.json', true, true)
+  if #nested == 1 then return true, nested[1] end
+  if #nested == 0 then return false, nil, 'No devcontainer config in ' .. ws .. ' (.devcontainer/devcontainer.json or .devcontainer.json)' end
+  return false, nil, 'Multiple devcontainer configs under ' .. ws .. '/.devcontainer; set DEVCONTAINER_CONFIG to one of them'
+end
+
+--- Path of the devcontainer CLI, or nil. Same lookup as `find_devcontainer_bin`.
+function M.find_cli()
+  local exe = vim.fn.exepath 'devcontainer'
+  if exe ~= '' then return exe end
+  local fallback = vim.fn.expand '~/.devcontainers/bin/devcontainer'
+  if vim.fn.executable(fallback) == 1 then return fallback end
+  return nil
+end
+
+--- Checks that reopen can work for `ws`. Returns an error string or nil.
+--- Order: config, devcontainer CLI, scripts, docker daemon.
+function M.preflight(ws)
+  local found, _, err = M.find_config(ws)
+  if not found then return err end
+  if not M.find_cli() then return 'devcontainer CLI not found (install @devcontainers/cli or add ~/.devcontainers/bin to PATH)' end
+  for _, rel in ipairs { M.config.up_script, M.config.exec_script } do
+    local path = M.config.local_repo .. '/' .. rel
+    if vim.fn.filereadable(path) ~= 1 then return 'Missing ' .. path .. ' (is ~/.dotfiles the checkout?)' end
+  end
+  if vim.fn.executable 'docker' ~= 1 then return 'docker CLI not found' end
+  local ok, res = pcall(function() return vim.system({ 'docker', 'info' }, { text = true }):wait(10000) end)
+  if not ok or res.code ~= 0 then return 'docker daemon not running (`docker info` failed)' end
+  return nil
+end
+
+--- Id of the running container for `ws`, or nil. The devcontainer CLI labels
+--- containers (compose ones too) with devcontainer.local_folder.
+function M.container_id(ws)
+  -- The CLI stores the resolved workspace path: no trailing slash.
+  local abs = function(p) return vim.fs.normalize(vim.fn.fnamemodify(p, ':p')) end
+  local argv = { 'docker', 'ps', '-q', '--filter', 'label=devcontainer.local_folder=' .. abs(ws) }
+  -- A non-default config has its own container: match it too.
+  local _, config = M.find_config(ws)
+  if config then vim.list_extend(argv, { '--filter', 'label=devcontainer.config_file=' .. abs(config) }) end
+  local ok, res = pcall(function() return vim.system(argv, { text = true }):wait(10000) end)
+  if not ok or res.code ~= 0 then return nil end
+  return vim.trim(res.stdout or ''):match '^(%S+)'
+end
+
+-- Runs in the container (bash -lc) with the config tarball on stdin.
+-- Replaces the contents of ~/dotfiles/nvim/.config/nvim (the directory
+-- itself stays, so a stow link to it stays valid; files deleted on the host
+-- disappear), then compares lazy-lock.json with the installed plugin
+-- commits and runs `Lazy! restore` on any difference. Plugins with no
+-- install dir (disabled in the container) are not counted as drift.
+local remote_sync = [[
+set -eu
+dst="$HOME/dotfiles/nvim/.config/nvim"
+tmp="$(mktemp -d)"
+trap 'find "$tmp" -delete' EXIT
+tar -xzf - -C "$tmp"
+mkdir -p "$dst"
+find "$dst" -mindepth 1 -delete
+cp -a "$tmp/.config/nvim/." "$dst/"
+lock="$dst/lazy-lock.json"
+root="${XDG_DATA_HOME:-$HOME/.local/share}/nvim/lazy"
+drift=0
+while read -r name commit; do
+  [ -d "$root/$name" ] || continue
+  if [ "$(git -C "$root/$name" rev-parse HEAD 2>/dev/null)" != "$commit" ]; then
+    drift=1
+    break
+  fi
+done < <(sed -n 's/^ *"\([^"]*\)": *{.*"commit": *"\([0-9a-f]*\)".*/\1 \2/p' "$lock")
+if [ "$drift" -eq 1 ]; then
+  echo '[devcontainer] plugins differ from host lazy-lock.json; running Lazy! restore'
+  nvim --headless '+Lazy! restore' +qa
+else
+  echo '[devcontainer] plugins match host lazy-lock.json'
+fi
+]]
+
+local function shell_join(argv) return table.concat(vim.tbl_map(sh_quote, argv), ' ') end
+
+--- Shell command (string) that re-copies the host config into the container.
+function M.sync_command(ws)
+  local _, config = M.find_config(ws)
+  local exec = { M.find_cli(), 'exec', '--workspace-folder', ws }
+  if config then vim.list_extend(exec, { '--config', config }) end
+  vim.list_extend(exec, { 'bash', '-lc', remote_sync })
+  local src = M.config.local_repo .. '/' .. M.config.nvim_package
+  local tar = { 'tar', '-C', src, '--exclude=.git', '--exclude=*.log', '--exclude=.claude', '-czf', '-', '.config/nvim' }
+  return 'set -o pipefail; echo '
+    .. sh_quote('[devcontainer] copying ' .. src .. '/.config/nvim -> container ~/dotfiles/nvim')
+    .. '; '
+    .. shell_join(tar)
+    .. ' | '
+    .. shell_join(exec)
+end
+
+--- Opens container Neovim for `ws`. `nvim_args` (list) is appended to the
+--- `nvim` command line; session sync (slice 9) passes its args here.
+--- Inside tmux: new tmux window. Otherwise: fullscreen terminal tab.
+function M.launch(ws, nvim_args)
+  local script = script_path(M.config.exec_script)
+  if not script then return end
+  local nvim_cmd = { 'nvim' }
+  vim.list_extend(nvim_cmd, nvim_args or {})
+  -- `&& exit` closes the container shell when Neovim quits cleanly.
+  local remote = shell_join(nvim_cmd) .. ' && exit'
+  local env = { DEVCONTAINER_PATH = ws }
+  if vim.env.DEVCONTAINER_CONFIG and vim.env.DEVCONTAINER_CONFIG ~= '' then env.DEVCONTAINER_CONFIG = vim.env.DEVCONTAINER_CONFIG end
+
+  if vim.env.TMUX and vim.env.TMUX ~= '' and vim.fn.executable 'tmux' == 1 then
+    -- The tmux server environment is not ours: pass env on the command line.
+    local parts = {}
+    for k, v in pairs(env) do
+      table.insert(parts, k .. '=' .. sh_quote(v))
+    end
+    -- On failure keep the window open so the error stays readable.
+    local shell_cmd = table.concat(parts, ' ')
+      .. ' bash '
+      .. sh_quote(script)
+      .. ' '
+      .. sh_quote(remote)
+      .. ' || { echo; read -r -p "devcontainer exec failed; press Enter to close " _; }'
+    local res = vim.system({ 'tmux', 'new-window', '-c', ws, '-n', 'devc', shell_cmd }, { text = true }):wait()
+    if res.code ~= 0 then notify('tmux new-window failed: ' .. vim.trim(res.stderr or ''), vim.log.levels.ERROR) end
+    return
+  end
+
+  vim.cmd.tabnew()
+  local buf = vim.api.nvim_get_current_buf()
+  vim.fn.jobstart({ 'bash', script, remote }, {
+    term = true,
+    cwd = ws,
+    env = env,
+    on_exit = function(_, code)
+      vim.schedule(function()
+        if code == 0 and vim.api.nvim_buf_is_valid(buf) then pcall(vim.api.nvim_buf_delete, buf, { force = true }) end
+      end)
+    end,
+  })
+  vim.bo.buflisted = false
+  pcall(vim.api.nvim_buf_set_name, 0, 'devcontainer nvim')
+  vim.cmd.startinsert()
+end
+
+--- Reopen the workspace in its devcontainer. Attaches when the container
+--- is running; otherwise runs the up script first. Never rebuilds.
+function M.reopen()
+  local ws = workspace()
+  local err = M.preflight(ws)
+  if err then
+    notify(err, vim.log.levels.ERROR)
+    return
+  end
+
+  local steps = {}
+  if M.container_id(ws) then
+    notify('Container running for ' .. ws .. '; attaching')
+  else
+    notify('No running container for ' .. ws .. '; starting it first')
+    table.insert(steps, 'bash ' .. sh_quote(M.config.local_repo .. '/' .. M.config.up_script))
+  end
+  table.insert(steps, M.sync_command(ws))
+
+  -- Group each step: sync_command contains `;`, so a bare `a && b; c` would run c after a failed.
+  local script = table.concat(vim.tbl_map(function(s) return '{ ' .. s .. '; }' end, steps), ' && ')
+  open_terminal({ 'bash', '-c', script }, 'devcontainer reopen', function(code, buf)
+    if code ~= 0 then
+      notify(('Reopen in container failed (exit %d); see the terminal split'):format(code), vim.log.levels.ERROR)
+      return
+    end
+    if vim.api.nvim_buf_is_valid(buf) then pcall(vim.api.nvim_buf_delete, buf, { force = true }) end
+    M.launch(ws)
+  end)
+end
+
 function M.setup(opts)
   M.config = vim.tbl_deep_extend('force', M.config, opts or {})
+
+  -- List the CLI in `:checkhealth custom` only when the scripts' lookup
+  -- (PATH, then ~/.devcontainers/bin) cannot find it.
+  if not M.find_cli() then require('custom.util').register('devcontainer', 'devcontainer commands (:DcUp, :DcReopen, ...)') end
 
   local cmd = vim.api.nvim_create_user_command
   cmd('DcUp', function(o) M.up(o.fargs) end, { nargs = '*', desc = 'devcontainer up (local dotfiles inject)' })
   cmd('DcRe', function(o) M.rebuild(o.fargs) end, { nargs = '*', desc = 'devcontainer up --remove-existing-container' })
   cmd('DcIn', function(o) M.exec(o.args) end, { nargs = '*', desc = 'Shell into devcontainer (optional command)' })
   cmd('DcInW', function(o) M.wait_then_exec(o.args) end, { nargs = '*', desc = 'Wait for zsh, then shell in' })
+  cmd('DcReopen', function() M.reopen() end, { nargs = 0, desc = 'Reopen cwd in devcontainer (attach if running)' })
 
   local map = function(lhs, rhs, desc) vim.keymap.set('n', lhs, rhs, { desc = desc }) end
   map('<leader>du', M.up, '[D]evcontainer [U]p')
   map('<leader>dr', M.rebuild, '[D]evcontainer [R]ebuild')
   map('<leader>di', M.exec, '[D]evcontainer shell [I]n')
   map('<leader>dw', M.wait_then_exec, '[D]evcontainer [W]ait + shell in')
+  map('<leader>do', M.reopen, '[D]evcontainer re[O]pen in container')
 end
 
 return M
