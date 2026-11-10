@@ -48,7 +48,7 @@ return {
     cmd = { 'MarkdownPreview', 'MarkdownPreviewStop', 'MarkdownPreviewToggle' },
     init = function() vim.g.mkdp_filetypes = { 'markdown' } end,
     build = function()
-      -- lazy still installs `cond = false` plugins; skip the download where it is never used.
+      -- Defensive: lazy skips `cond = false` plugins, but never download where preview is unused.
       if not preview_ok then return end
       -- Load the plugin first so `mkdp#util#install_sync` exists, then fetch the prebuilt app.
       require('lazy').load { plugins = { 'markdown-preview.nvim' }, wait = true }
