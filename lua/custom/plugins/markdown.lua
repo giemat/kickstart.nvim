@@ -14,8 +14,13 @@ local function preview()
     vim.notify('Browser preview unavailable in container', vim.log.levels.WARN)
     return
   end
-  if vim.fn.exists ':MarkdownPreviewToggle' ~= 2 then
+  local plugin = require('lazy.core.config').plugins['markdown-preview.nvim']
+  if vim.fn.exists ':MarkdownPreviewToggle' ~= 2 or not plugin then
     vim.notify('Browser preview unavailable: markdown-preview.nvim is not installed', vim.log.levels.WARN)
+    return
+  end
+  if #vim.fn.glob(plugin.dir .. '/app/bin/markdown-preview-*', false, true) == 0 then
+    vim.notify('Browser preview unavailable: prebuilt app missing, run :Lazy build markdown-preview.nvim', vim.log.levels.WARN)
     return
   end
   vim.cmd 'MarkdownPreviewToggle'
@@ -45,14 +50,19 @@ return {
     'iamcco/markdown-preview.nvim',
     cond = preview_ok,
     ft = 'markdown',
-    cmd = { 'MarkdownPreview', 'MarkdownPreviewStop', 'MarkdownPreviewToggle' },
     init = function() vim.g.mkdp_filetypes = { 'markdown' } end,
-    build = function()
+    build = function(plugin)
       -- Defensive: lazy skips `cond = false` plugins, but never download where preview is unused.
       if not preview_ok then return end
-      -- Load the plugin first so `mkdp#util#install_sync` exists, then fetch the prebuilt app.
-      require('lazy').load { plugins = { 'markdown-preview.nvim' }, wait = true }
-      vim.fn['mkdp#util#install_sync']()
+      -- Fetch the prebuilt app for the pinned version. Runs install.sh directly (not
+      -- `mkdp#util#install`, which `lcd`s the focused window) and waits for it.
+      local app = plugin.dir .. '/app'
+      local version = vim.json.decode(table.concat(vim.fn.readfile(plugin.dir .. '/package.json'), '\n')).version
+      local res = vim.system({ './install.sh', 'v' .. version }, { cwd = app }):wait()
+      -- install.sh only warns (exit 0) when the download fails, so also check for the binary.
+      if res.code ~= 0 or #vim.fn.glob(app .. '/bin/markdown-preview-*', false, true) == 0 then
+        error('markdown-preview install.sh failed: ' .. (res.stderr or ''), 0)
+      end
     end,
   },
 }
