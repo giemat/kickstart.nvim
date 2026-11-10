@@ -9,11 +9,13 @@ return {
     icons = { mappings = vim.g.have_nerd_font },
 
     -- Document existing key chains
-    spec = {
-      { '<leader>s', group = '[S]earch', mode = { 'n', 'v' } },
-      { '<leader>t', group = '[T]oggle' },
-      { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
-      { '<leader>d', group = '[D]evcontainer' },
-    },
+    -- Group names live in lua/custom/cheatsheet.lua so the cheatsheet and which-key never drift.
+    spec = (function()
+      local spec = {}
+      for _, g in ipairs(require('custom.cheatsheet').groups) do
+        table.insert(spec, { g.prefix, group = g.name, mode = g.mode })
+      end
+      return spec
+    end)(),
   },
 }
