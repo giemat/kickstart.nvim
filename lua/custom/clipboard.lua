@@ -59,9 +59,14 @@ local last_copy = {}
 local function last(reg) return vim.deepcopy(last_copy[reg] or { {}, 'v' }) end
 
 -- Honor the user's tmux `set-clipboard`: `-w` would bypass it.
+-- Read once per session so a yank spawns only `load-buffer`.
+local forwards_cache
 local function tmux_forwards_clipboard()
-  local out = vim.fn.systemlist { 'tmux', 'show-options', '-sv', 'set-clipboard' }
-  return vim.v.shell_error == 0 and (out[1] == 'on' or out[1] == 'external')
+  if forwards_cache == nil then
+    local out = vim.fn.systemlist { 'tmux', 'show-options', '-sv', 'set-clipboard' }
+    forwards_cache = vim.v.shell_error == 0 and (out[1] == 'on' or out[1] == 'external')
+  end
+  return forwards_cache
 end
 
 local function copy(reg)
@@ -89,7 +94,8 @@ local function osc52_query(reg)
     callback = function(ev)
       local encoded = (ev.data.sequence or ''):match '\027%]52;%w?;([A-Za-z0-9+/=]*)'
       if encoded then
-        contents = vim.base64.decode(encoded)
+        local ok, decoded = pcall(vim.base64.decode, encoded)
+        contents = ok and decoded or false -- false: malformed reply, stop waiting
         return true -- delete this autocmd
       end
     end,
@@ -100,6 +106,7 @@ local function osc52_query(reg)
     pcall(vim.api.nvim_del_autocmd, id)
     return nil
   end
+  if not contents then return nil end
   return vim.split(contents, '\n')
 end
 
