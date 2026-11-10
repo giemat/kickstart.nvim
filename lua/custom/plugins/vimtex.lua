@@ -26,7 +26,10 @@ return {
     if util.in_container() then
       vim.g.vimtex_view_enabled = 0
     elseif util.has 'zathura' then
-      vim.g.vimtex_view_method = 'zathura'
+      -- vimtex's 'zathura' method finds the open window with xdotool (X11 only); without it every
+      -- view opens a new window. 'zathura_simple' lets zathura forward the search over D-Bus instead.
+      local xdo = util.has 'xdotool' and vim.env.WAYLAND_DISPLAY == nil
+      vim.g.vimtex_view_method = xdo and 'zathura' or 'zathura_simple'
     else
       vim.g.vimtex_view_enabled = 0
       view_tool = 'zathura'
@@ -46,7 +49,10 @@ return {
             group = group,
             buffer = args.buf,
             desc = 'vimtex: compile on save',
-            callback = function() pcall(vim.cmd, 'VimtexCompileSS') end,
+            callback = function()
+              local ok, err = pcall(vim.cmd, 'VimtexCompileSS')
+              if not ok then vim.notify('vimtex compile on save failed: ' .. tostring(err), vim.log.levels.ERROR) end
+            end,
           })
         end
       end,
