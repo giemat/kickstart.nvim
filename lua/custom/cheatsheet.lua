@@ -31,7 +31,7 @@ local function section_for(lhs)
     if vim.startswith(lhs, g.prefix) then return g.name end
   end
   if lhs:match '^<leader>[aA1-4]$' then return 'Harpoon' end
-  if lhs:match '^<C%-[hjkl]>$' then return 'Navigation' end
+  if lhs:match '^<C%-[hjklHJKL]>$' then return 'Navigation' end
   if lhs:match '^<leader>' then return 'Leader' end
   return 'General'
 end
@@ -81,7 +81,7 @@ function M.open()
   vim.bo[buf].modifiable = false
   vim.bo[buf].bufhidden = 'wipe'
   local width = math.min(100, vim.o.columns - 4)
-  local height = math.min(#lines, vim.o.lines - 6)
+  local height = math.max(1, math.min(#lines, vim.o.lines - 6))
   local win = vim.api.nvim_open_win(buf, true, {
     relative = 'editor',
     width = width,
