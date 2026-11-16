@@ -7,6 +7,7 @@ local M = {}
 M.groups = {
   { prefix = '<leader>s', name = '[S]earch', mode = { 'n', 'v' } },
   { prefix = '<leader>t', name = '[T]oggle' },
+  { prefix = '<leader>g', name = '[G]it' },
   { prefix = '<leader>h', name = 'Git [H]unk', mode = { 'n', 'v' } },
   { prefix = '<leader>d', name = '[D]evcontainer' },
   { prefix = '<leader>m', name = '[M]arkdown' },
@@ -19,6 +20,9 @@ M.learning_path = {
   '2. Leader groups: press <Space> and wait; which-key lists every group.',
   '3. Practice: :Tutor (built-in lesson), :VimBeGood (motion games).',
   '4. Lost? <leader>sk searches all keymaps, <leader>sh searches help, <leader>? shows this page.',
+  '5. Git: <leader>gg opens Neogit. Press ? for its keymaps; <Tab> expands a file or hunk.',
+  '   In Neogit: s stages, u unstages, c opens the commit menu, b opens branches, q closes the view.',
+  '   Use <leader>h for Gitsigns hunk actions in file buffers.',
 }
 
 local function pretty(lhs)
