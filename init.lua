@@ -178,15 +178,7 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   callback = function() vim.hl.on_yank() end,
 })
 
--- Reload files changed outside Neovim (e.g. edited from a container Neovim).
-vim.o.autoread = true
-vim.api.nvim_create_autocmd({ 'FocusGained', 'BufEnter', 'CursorHold' }, {
-  desc = 'Check for files changed outside Neovim',
-  group = vim.api.nvim_create_augroup('custom-autoread', { clear = true }),
-  callback = function()
-    if vim.bo.buftype == '' and not vim.fn.mode():match '^c' then vim.cmd 'checktime' end
-  end,
-})
+require 'custom.files'
 
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
