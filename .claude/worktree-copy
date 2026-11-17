@@ -1,0 +1,12 @@
+# Files/directories to copy from the main checkout into new slice
+# worktrees, in addition to .env and .env.local (always copied). One path
+# per line, relative to the repo root. Comments start with #. Missing paths
+# are silently skipped, so it's safe to leave defaults for stacks you don't
+# use in this project.
+.envrc
+.tool-versions
+.nvmrc
+.python-version
+.ruby-version
+config/local.yml
+config/local.json
