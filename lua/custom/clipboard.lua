@@ -51,7 +51,8 @@ local has_wayland = vim.env.WAYLAND_DISPLAY ~= nil and util.has 'wl-copy' and ut
 if has_wayland and not in_ssh and not in_container then return end
 if not (in_container or in_ssh or in_tmux or vim.env.HERDR_PANE_ID ~= nil or has_ancestor 'herdr') then return end
 
-local osc52 = require 'vim.ui.clipboard.osc52'
+local has_osc52, osc52 = pcall(require, 'vim.ui.clipboard.osc52')
+if not has_osc52 then return end
 -- A container usually has no tmux binary or socket; the outer tmux sees OSC 52.
 local has_tmux = in_tmux and util.has 'tmux'
 local last_copy = {}
